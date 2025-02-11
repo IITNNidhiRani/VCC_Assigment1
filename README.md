@@ -31,15 +31,22 @@ Create `app.py`:
 from flask import Flask, jsonify
 
 app = Flask(__name__)
-users = {1: {"name": "Alice", "email": "alice@example.com"}}
+
+# Dummy user data
+users = {
+    1: {"name": "Alisha", "email": "alisha@example.com"},
+    2: {"name": "Putus", "email": "putus@example.com"}
+}
 
 @app.route('/users/<int:user_id>', methods=['GET'])
 def get_user(user_id):
-    return jsonify(users.get(user_id, {"error": "User not found"}))
+    user = users.get(user_id, None)
+    if user:
+        return jsonify(user)
+    return jsonify({"error": "User not found"}), 404
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=6000)
-```
 Run the service:
 ```bash
 python3 app.py
@@ -56,18 +63,29 @@ from flask import Flask, jsonify
 import requests
 
 app = Flask(__name__)
-orders = {101: {"user_id": 1, "product": "Laptop"}}
-USER_SERVICE_URL = "http://192.168.1.101:6001/users/"
+
+# Dummy order data
+orders = {
+    101: {"user_id": 1, "product": "Tablet", "amount": 1500},
+    102: {"user_id": 2, "product": "Phone", "amount": 600}
+}
+
+USER_SERVICE_URL = "http://192.168.196.189:6000/users/"  
 
 @app.route('/orders/<int:order_id>', methods=['GET'])
 def get_order(order_id):
     order = orders.get(order_id, None)
     if not order:
         return jsonify({"error": "Order not found"}), 404
-    user_response = requests.get(f"{USER_SERVICE_URL}{order['user_id']}")
-    order["user_details"] = user_response.json()
-    return jsonify(order)
 
+     # Fetch user details from User Service
+     user_response = requests.get(f"{USER_SERVICE_URL}{order['user_id']}") 
+     if user_response.status_code == 200: 
+        order["user_details"] = user_response.json() 
+     else: 
+        order["user_details"] = "User details unavailable" 
+        
+     return jsonify(order) 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=6001)
 ```
@@ -102,8 +120,9 @@ Create `Dockerfile`:
 ```dockerfile
 FROM python:3.9
 WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
 COPY . .
-RUN pip install flask requests
 CMD ["python", "app.py"]
 ```
 ```bash
